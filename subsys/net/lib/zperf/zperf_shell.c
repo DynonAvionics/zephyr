@@ -1157,14 +1157,13 @@ void zperf_shell_init(void)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_NET_IPV6) && MY_IP6ADDR) {
-		if (zperf_get_ipv6_addr(MY_IP6ADDR, MY_PREFIX_LEN_STR,
-					&ipv6) < 0) {
+		ret = net_addr_pton(AF_INET6, MY_IP6ADDR,
+				    &in6_addr_my.sin6_addr);
+		if (ret < 0) {
 			NET_WARN("Unable to set IP");
 		} else {
 			NET_INFO("Setting IP address %s",
-				 net_sprint_ipv6_addr(&ipv6));
-
-			net_ipaddr_copy(&in6_addr_my.sin6_addr, &ipv6);
+				 net_sprint_ipv6_addr(&in6_addr_my.sin6_addr));
 		}
 
 		ret = net_addr_pton(AF_INET6, DST_IP6ADDR,
@@ -1180,13 +1179,13 @@ void zperf_shell_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_NET_IPV4) && MY_IP4ADDR) {
-		if (zperf_get_ipv4_addr(MY_IP4ADDR, &ipv4) < 0) {
+		ret = net_addr_pton(AF_INET, MY_IP4ADDR,
+				    &in4_addr_my.sin_addr);
+		if (ret < 0) {
 			NET_WARN("Unable to set IP");
 		} else {
 			NET_INFO("Setting IP address %s",
-				 net_sprint_ipv4_addr(&ipv4));
-
-			net_ipaddr_copy(&in4_addr_my.sin_addr, &ipv4);
+				 net_sprint_ipv4_addr(&in4_addr_my.sin_addr));
 		}
 
 		ret = net_addr_pton(AF_INET, DST_IP4ADDR,

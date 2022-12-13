@@ -94,6 +94,8 @@ int zperf_tcp_upload(const struct zperf_upload_params *param,
 /**
  * @brief Asynchronous UDP upload operation.
  *
+ * @note Only one asynchronous upload can be performed at a time.
+ *
  * @param param Upload parameters.
  * @param callback Session results callback.
  * @param user_data A pointer to the user data to be provided with the callback.
@@ -106,6 +108,8 @@ int zperf_udp_upload_async(const struct zperf_upload_params *param,
 
 /**
  * @brief Asynchronous TCP upload operation.
+ *
+ * @note Only one asynchronous upload can be performed at a time.
  *
  * @param param Upload parameters.
  * @param callback Session results callback.
@@ -120,6 +124,8 @@ int zperf_tcp_upload_async(const struct zperf_upload_params *param,
 /**
  * @brief Start UDP server.
  *
+ * @note Only one UDP server instance can run at a time.
+ *
  * @param param Download parameters.
  * @param callback Session results callback.
  * @param user_data A pointer to the user data to be provided with the callback.
@@ -131,6 +137,8 @@ int zperf_udp_download(const struct zperf_download_params *param,
 
 /**
  * @brief Start TCP server.
+ *
+ * @note Only one TCP server instance can run at a time.
  *
  * @param param Download parameters.
  * @param callback Session results callback.
