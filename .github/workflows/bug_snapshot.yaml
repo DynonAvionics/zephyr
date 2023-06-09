@@ -9,9 +9,9 @@ name: Bug Snapshot
 on:
   workflow_dispatch:
     branches: [main]
-  schedule:
-  # Run daily at 14:05
-  - cron: '5 14 * * *'
+  # schedule:
+  # # Run daily at 14:05
+  # - cron: '5 14 * * *'
 
 jobs:
   make_bugs_pickle:

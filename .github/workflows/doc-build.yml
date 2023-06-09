@@ -4,8 +4,8 @@
 name: Documentation Build
 
 on:
-  schedule:
-  - cron: '0 */3 * * *'
+  # schedule:
+  # - cron: '0 */3 * * *'
   push:
     tags:
     - v*
