@@ -3,9 +3,9 @@ name: Stale Workflow Queue Cleanup
 on:
   workflow_dispatch:
     branches: [main]
-  schedule:
-  # everyday at 15:00
-  - cron: '0 15 * * *'
+  # schedule:
+  # # everyday at 15:00
+  # - cron: '0 15 * * *'
 
 concurrency:
   group: stale-workflow-queue-cleanup

@@ -9,9 +9,9 @@ on:
     branches:
       - main
       - v*-branch
-  schedule:
-    # Run at 00:00 on Wednesday and Saturday
-    - cron: '0 0 * * 3,6'
+  # schedule:
+  #   # Run at 00:00 on Wednesday and Saturday
+  #   - cron: '0 0 * * 3,6'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
