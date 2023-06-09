@@ -4,8 +4,8 @@
 name: Publish commit for daily testing
 
 on:
-  schedule:
-  - cron: '50 22 * * *'
+  # schedule:
+  # - cron: '50 22 * * *'
   push:
     branches:
     - refs/tags/*
