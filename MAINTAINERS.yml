@@ -1015,6 +1015,8 @@ Release Notes:
   collaborators:
     - rlubos
     - jciupis
+    - cfriedt
+    - fgrandel
   files:
     - drivers/ieee802154/
   labels:
@@ -2002,6 +2004,24 @@ Retention:
   labels:
     - "area: Retention"
 
+Sensor Subsystem:
+  status: maintained
+  maintainers:
+    - lixuzha
+    - ghu0510
+    - yperess
+  collaborators:
+    - qianruh
+  files:
+    - dts/bindings/sensor/zephyr,sensing.yaml
+    - dts/bindings/sensor/zephyr,sensing*.yaml
+    - include/zephyr/sensing/
+    - doc/services/sensing/
+    - subsys/sensing/
+    - samples/subsys/sensing/
+  labels:
+    - "area: Sensor Subsystem"
+
 Twister:
   status: maintained
   maintainers:
@@ -2106,7 +2126,7 @@ GD32 Platforms:
     - dts/*/gigadevice/
     - dts/bindings/*/*gd32*
     - soc/arm/gigadevice/
-    - soc/riscv/riscv-privilege/gd32vf103/
+    - soc/riscv/riscv-privileged/gd32vf103/
     - scripts/west_commands/*/*gd32*
   labels:
     - "platform: GD32"
@@ -2619,7 +2639,7 @@ USB:
     - subsys/usb/
     - tests/subsys/usb/
     - tests/drivers/udc/
-    - doc/services/usb/
+    - doc/connectivity/usb/
   labels:
     - "area: USB"
 
@@ -2636,7 +2656,7 @@ USB-C:
     - include/zephyr/usb_c/
     - samples/subsys/usb_c/
     - subsys/usb/usb_c/
-    - doc/connectivity/usb_c/
+    - doc/connectivity/usb/pd/
   labels:
     - "area: USB-C"
 

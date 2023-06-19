@@ -310,6 +310,18 @@ static int wifi_set_twt(uint32_t mgmt_request, struct net_if *iface,
 		goto fail;
 	}
 
+#ifdef CONFIG_WIFI_MGMT_TWT_CHECK_IP
+	if ((!net_if_ipv4_get_global_addr(iface, NET_ADDR_PREFERRED)) &&
+	    (!net_if_ipv6_get_global_addr(NET_ADDR_PREFERRED, &iface))) {
+		twt_params->fail_reason =
+			WIFI_TWT_FAIL_IP_NOT_ASSIGNED;
+		goto fail;
+	}
+#else
+	NET_WARN("Check for valid IP address been disabled. "
+		 "Device might be unreachable or might not receive traffic.\n");
+#endif /* CONFIG_WIFI_MGMT_TWT_CHECK_IP */
+
 	if (info.link_mode < WIFI_6) {
 		twt_params->fail_reason =
 			WIFI_TWT_FAIL_PEER_NOT_HE_CAPAB;
@@ -362,7 +374,7 @@ void wifi_mgmt_raise_twt_sleep_state(struct net_if *iface,
 				     int twt_sleep_state)
 {
 	net_mgmt_event_notify_with_info(NET_EVENT_WIFI_TWT_SLEEP_STATE,
-					iface, INT_TO_POINTER(twt_sleep_state),
+					iface, &twt_sleep_state,
 					sizeof(twt_sleep_state));
 }
 
