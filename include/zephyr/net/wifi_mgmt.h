@@ -143,6 +143,16 @@ enum net_event_wifi_cmd {
 
 #define NET_EVENT_WIFI_DISCONNECT_COMPLETE			\
 	(_NET_WIFI_EVENT | NET_EVENT_WIFI_CMD_DISCONNECT_COMPLETE)
+
+struct wifi_scan_params {
+	/* The scan_type is only a hint to the underlying Wi-Fi chip for the
+	 * preferred mode of scan. The actual mode of scan can depend on factors
+	 * such as the Wi-Fi chip implementation support, regulatory domain
+	 * restrictions etc.
+	 */
+	enum wifi_scan_type scan_type;
+};
+
 /* Each result is provided to the net_mgmt_event_callback
  * via its info attribute (see net_mgmt.h)
  */
@@ -203,7 +213,13 @@ struct wifi_ps_params {
 	unsigned short listen_interval;
 	enum wifi_ps_wakeup_mode wakeup_mode;
 	enum wifi_ps_mode mode;
-	int timeout_ms;
+	/* This is the time out to wait after sending a TX packet
+	 * before going back to power save (in ms) to receive any replies
+	 * from the AP. Zero means this feature is disabled.
+	 *
+	 * It's a tradeoff between power consumption and latency.
+	 */
+	unsigned int timeout_ms;
 	enum ps_param_type type;
 	enum wifi_config_ps_param_fail_reason fail_reason;
 };
@@ -298,24 +314,14 @@ typedef void (*scan_result_cb_t)(struct net_if *iface, int status,
 typedef void (*raw_scan_result_cb_t)(struct net_if *iface, int status,
 				     struct wifi_raw_scan_result *entry);
 #endif /* CONFIG_WIFI_MGMT_RAW_SCAN_RESULTS */
-struct net_wifi_mgmt_offload {
-	/**
-	 * Mandatory to get in first position.
-	 * A network device should indeed provide a pointer on such
-	 * net_if_api structure. So we make current structure pointer
-	 * that can be casted to a net_if_api structure pointer.
-	 */
-#ifdef CONFIG_WIFI_USE_NATIVE_NETWORKING
-	struct ethernet_api wifi_iface;
-#else
-	struct offloaded_if_api wifi_iface;
-#endif
-
+struct wifi_mgmt_ops {
 	/* cb parameter is the cb that should be called for each
 	 * result by the driver. The wifi mgmt part will take care of
 	 * raising the necessary event etc...
 	 */
-	int (*scan)(const struct device *dev, scan_result_cb_t cb);
+	int (*scan)(const struct device *dev,
+		    struct wifi_scan_params *params,
+		    scan_result_cb_t cb);
 	int (*connect)(const struct device *dev,
 		       struct wifi_connect_req_params *params);
 	int (*disconnect)(const struct device *dev);
@@ -330,6 +336,21 @@ struct net_wifi_mgmt_offload {
 	int (*set_twt)(const struct device *dev, struct wifi_twt_params *params);
 	int (*get_power_save_config)(const struct device *dev, struct wifi_ps_config *config);
 	int (*reg_domain)(const struct device *dev, struct wifi_reg_domain *reg_domain);
+};
+
+struct net_wifi_mgmt_offload {
+	/**
+	 * Mandatory to get in first position.
+	 * A network device should indeed provide a pointer on such
+	 * net_if_api structure. So we make current structure pointer
+	 * that can be casted to a net_if_api structure pointer.
+	 */
+#ifdef CONFIG_WIFI_USE_NATIVE_NETWORKING
+	struct ethernet_api wifi_iface;
+#else
+	struct offloaded_if_api wifi_iface;
+#endif
+	const struct wifi_mgmt_ops *const wifi_mgmt_api;
 };
 
 /* Make sure that the network interface API is properly setup inside
