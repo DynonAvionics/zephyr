@@ -193,7 +193,7 @@ __asm__(".align 4\n\t"
 	"  call0 power_gate_exit\n\t");
 
 #ifdef CONFIG_ADSP_IMR_CONTEXT_SAVE
-static void ALWAYS_INLINE power_off_exit(void)
+static ALWAYS_INLINE void power_off_exit(void)
 {
 	__asm__(
 		"  movi  a0, 0\n\t"
@@ -223,7 +223,7 @@ __imr void pm_state_imr_restore(void)
 }
 #endif /* CONFIG_ADSP_IMR_CONTEXT_SAVE */
 
-__weak void pm_state_set(enum pm_state state, uint8_t substate_id)
+void pm_state_set(enum pm_state state, uint8_t substate_id)
 {
 	ARG_UNUSED(substate_id);
 	uint32_t cpu = arch_proc_id();
@@ -282,9 +282,12 @@ __weak void pm_state_set(enum pm_state state, uint8_t substate_id)
 					(void *)rom_entry;
 			sys_cache_data_flush_range(imr_layout, sizeof(*imr_layout));
 #endif /* CONFIG_ADSP_IMR_CONTEXT_SAVE */
+			uint32_t hpsram_mask = 0;
+#ifdef CONFIG_ADSP_POWER_DOWN_HPSRAM
 			/* turn off all HPSRAM banks - get a full bitmap */
 			uint32_t ebb_banks = ace_hpsram_get_bank_count();
-			uint32_t hpsram_mask = (1 << ebb_banks) - 1;
+			hpsram_mask = (1 << ebb_banks) - 1;
+#endif /* CONFIG_ADSP_POWER_DOWN_HPSRAM */
 			/* do power down - this function won't return */
 			power_down(true, uncache_to_cache(&hpsram_mask),
 				   true);
@@ -308,7 +311,7 @@ __weak void pm_state_set(enum pm_state state, uint8_t substate_id)
 }
 
 /* Handle SOC specific activity after Low Power Mode Exit */
-__weak void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
+void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
 {
 	ARG_UNUSED(substate_id);
 	uint32_t cpu = arch_proc_id();

@@ -1165,7 +1165,7 @@ static void read_codecs_v2(struct net_buf *buf, struct net_buf **evt)
 	/* copy vendor specific codec information  */
 	vs_codecs = (struct bt_hci_vs_codecs_v2 *)&rp->codecs[std_codecs_bytes];
 	vs_codecs->num_codecs = num_vs_codecs;
-	for (i = 0; i < num_std_codecs; i++) {
+	for (i = 0; i < num_vs_codecs; i++) {
 		struct bt_hci_vs_codec_info_v2 *codec;
 
 		codec = &vs_codecs->codec_info[i];
@@ -2032,8 +2032,8 @@ static void le_set_cig_parameters(struct net_buf *buf, struct net_buf **evt)
 		status = ll_cig_parameters_commit(cig_id, handles);
 
 		if (status == BT_HCI_ERR_SUCCESS) {
-			for (uint8_t i = 0; i < cis_count; i++) {
-				rp->handle[i] = sys_cpu_to_le16(handles[i]);
+			for (uint8_t j = 0; j < cis_count; j++) {
+				rp->handle[j] = sys_cpu_to_le16(handles[j]);
 			}
 		}
 	}
@@ -2104,8 +2104,8 @@ static void le_set_cig_params_test(struct net_buf *buf, struct net_buf **evt)
 		status = ll_cig_parameters_commit(cig_id, handles);
 
 		if (status == BT_HCI_ERR_SUCCESS) {
-			for (uint8_t i = 0; i < cis_count; i++) {
-				rp->handle[i] = sys_cpu_to_le16(handles[i]);
+			for (uint8_t j = 0; j < cis_count; j++) {
+				rp->handle[j] = sys_cpu_to_le16(handles[j]);
 			}
 		}
 	}
@@ -2120,6 +2120,15 @@ static void le_create_cis(struct net_buf *buf, struct net_buf **evt)
 	struct bt_hci_cp_le_create_cis *cmd = (void *)buf->data;
 	uint8_t status;
 	uint8_t i;
+
+	/*
+	 * Only create a CIS if the Isochronous Channels (Host Support) feature bit
+	 * is set. Refer to BT Spec v5.4 Vol 6 Part B Section 4.6.33.1.
+	 */
+	if (!(ll_feat_get() & BIT64(BT_LE_FEAT_BIT_ISO_CHANNELS))) {
+		*evt = cmd_status(BT_HCI_ERR_CMD_DISALLOWED);
+		return;
+	}
 
 	/*
 	 * Creating new CISes is disallowed until all previous CIS
@@ -3821,7 +3830,8 @@ static void le_set_ext_scan_enable(struct net_buf *buf, struct net_buf **evt)
 	}
 #endif /* CONFIG_BT_CTLR_DUP_FILTER_LEN > 0 */
 
-	status = ll_scan_enable(cmd->enable, cmd->duration, cmd->period);
+	status = ll_scan_enable(cmd->enable, sys_le16_to_cpu(cmd->duration),
+				sys_le16_to_cpu(cmd->period));
 
 	/* NOTE: As filter duplicates is implemented here in HCI source code,
 	 *       enabling of already enabled scanning shall succeed after
@@ -5656,7 +5666,7 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 
 	iso_hdr = net_buf_pull_mem(buf, sizeof(*iso_hdr));
 	handle = sys_le16_to_cpu(iso_hdr->handle);
-	len = sys_le16_to_cpu(iso_hdr->len);
+	len = bt_iso_hdr_len(sys_le16_to_cpu(iso_hdr->len));
 
 	if (buf->len < len) {
 		LOG_ERR("Invalid HCI ISO packet length");
@@ -5696,7 +5706,8 @@ int hci_iso_handle(struct net_buf *buf, struct net_buf **evt)
 		iso_data_hdr = net_buf_pull_mem(buf, sizeof(*iso_data_hdr));
 		len -= sizeof(*iso_data_hdr);
 		sdu_frag_tx.packet_sn = sys_le16_to_cpu(iso_data_hdr->sn);
-		sdu_frag_tx.iso_sdu_length = sys_le16_to_cpu(iso_data_hdr->slen);
+		sdu_frag_tx.iso_sdu_length =
+			sys_le16_to_cpu(bt_iso_pkt_len(iso_data_hdr->slen));
 	} else {
 		sdu_frag_tx.packet_sn = 0;
 		sdu_frag_tx.iso_sdu_length = 0;
@@ -6959,6 +6970,19 @@ no_ext_hdr:
 			LOG_DBG("    AD Data (%u): <todo>", data_len);
 		}
 
+		if (data_len_total + data_len_curr > CONFIG_BT_CTLR_SCAN_DATA_LEN_MAX) {
+			/* Truncating advertising data
+			 * Note that this has to be done at a PDU boundary, so stop
+			 * processing nodes from this one forward
+			 */
+			if (scan_data) {
+				scan_data_status = BT_HCI_LE_ADV_EVT_TYPE_DATA_STATUS_INCOMPLETE;
+			} else {
+				data_status = BT_HCI_LE_ADV_EVT_TYPE_DATA_STATUS_INCOMPLETE;
+			}
+			break;
+		}
+
 		if (node_rx_curr == node_rx) {
 			evt_type = evt_type_curr;
 			adv_addr_type = adv_addr_type_curr;
@@ -7092,16 +7116,6 @@ no_ext_hdr:
 		}
 	}
 
-	/* Restrict data length to maximum scan data length */
-	if (data_len_total > CONFIG_BT_CTLR_SCAN_DATA_LEN_MAX) {
-		data_len_total = CONFIG_BT_CTLR_SCAN_DATA_LEN_MAX;
-		if (data_len > data_len_total) {
-			data_len = data_len_total;
-		}
-
-		data_status = BT_HCI_LE_ADV_EVT_TYPE_DATA_STATUS_INCOMPLETE;
-	}
-
 	/* Set directed advertising bit */
 	if (direct_addr) {
 		evt_type |= BT_HCI_LE_ADV_EVT_TYPE_DIRECT;
@@ -7139,16 +7153,6 @@ no_ext_hdr:
 		node_rx_extra_list_release(node_rx->hdr.rx_ftr.extra);
 
 		return;
-	}
-
-	/* Restrict scan response data length to maximum scan data length */
-	if (scan_data_len_total > CONFIG_BT_CTLR_SCAN_DATA_LEN_MAX) {
-		scan_data_len_total = CONFIG_BT_CTLR_SCAN_DATA_LEN_MAX;
-		if (scan_data_len > scan_data_len_total) {
-			scan_data_len = scan_data_len_total;
-		}
-
-		scan_data_status = BT_HCI_LE_ADV_EVT_TYPE_DATA_STATUS_INCOMPLETE;
 	}
 
 	/* Set scan response bit */

@@ -39,7 +39,7 @@ except ImportError as capture_error:
 logger = logging.getLogger('twister')
 logger.setLevel(logging.DEBUG)
 
-SUPPORTED_SIMS = ["mdb-nsim", "nsim", "renode", "qemu", "tsim", "armfvp", "xt-sim", "native"]
+SUPPORTED_SIMS = ["mdb-nsim", "nsim", "renode", "qemu", "tsim", "armfvp", "xt-sim", "native", "custom"]
 SUPPORTED_SIMS_IN_PYTEST = ['native', 'qemu']
 
 
@@ -467,6 +467,8 @@ class DeviceHandler(Handler):
     def handle(self, harness):
         runner = None
         hardware = self.get_hardware()
+        if hardware:
+            self.instance.dut = hardware.id
         if not hardware:
             return
 

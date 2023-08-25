@@ -210,6 +210,20 @@ static inline void *return_to(void *interrupted)
 	return z_arch_get_next_switch_handle(interrupted);
 }
 
+#if defined(CONFIG_FPU) && defined(CONFIG_FPU_SHARING)
+int arch_float_disable(struct k_thread *thread)
+{
+	/* xtensa always has FPU enabled so cannot be disabled */
+	return -ENOTSUP;
+}
+
+int arch_float_enable(struct k_thread *thread, unsigned int options)
+{
+	/* xtensa always has FPU enabled so nothing to do here */
+	return 0;
+}
+#endif /* CONFIG_FPU && CONFIG_FPU_SHARING */
+
 /* The wrapper code lives here instead of in the python script that
  * generates _xtensa_handle_one_int*().  Seems cleaner, still kind of
  * ugly.
@@ -455,3 +469,16 @@ int z_xtensa_irq_is_enabled(unsigned int irq)
 
 	return (ie & (1 << irq)) != 0U;
 }
+
+#ifdef CONFIG_XTENSA_MORE_SPIN_RELAX_NOPS
+/* Some compilers might "optimize out" (i.e. remove) continuous NOPs.
+ * So force no optimization to avoid that.
+ */
+__no_optimization
+void arch_spin_relax(void)
+{
+#define NOP1(_, __) __asm__ volatile("nop.n;");
+	LISTIFY(CONFIG_XTENSA_NUM_SPIN_RELAX_NOPS, NOP1, (;))
+#undef NOP1
+}
+#endif /* CONFIG_XTENSA_MORE_SPIN_RELAX_NOPS */

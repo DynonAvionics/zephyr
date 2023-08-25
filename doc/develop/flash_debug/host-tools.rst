@@ -184,8 +184,8 @@ As a quick reference, see these three board documentation pages:
 Enabling BOSSAC on Windows Native [Experimental]
 ------------------------------------------------
 
-Zephyr SDK´s bossac is only currenty support on Linux and macOS. Windows support
-can be achieved by using the bossac version from `BOSSA oficial releases`_.
+Zephyr SDK´s bossac is currently supported on Linux and macOS only. Windows support
+can be achieved by using the bossac version from `BOSSA official releases`_.
 After installing using default options, the :file:`bossac.exe` must be added to
 Windows PATH. A specific bossac executable can be used by passing the
 ``--bossac`` option, as follows:
@@ -198,6 +198,55 @@ Windows PATH. A specific bossac executable can be used by passing the
 
    WSL is not currently supported.
 
+
+.. _linkserver-debug-host-tools:
+
+LinkServer Debug  Host Tools
+****************************
+
+Linkserver is a utility for launching and managing GDB servers for NXP debug probes,
+which also provides a command-line target flash programming capabilities.
+Linkserver can be used with NXP MCUXpresso for Visual Studio Code implementation,
+with custom debug configurations based on GNU tools or as part of a headless solution
+for continuous integration and test. Linkserver can be used with MCU-Link, LPC-Link2,
+LPC11U35-based and OpenSDA based standalone or on-board debug probes from NXP.
+The Linkserver installer also includes the firmware update utilities for MCU-Link and
+the LPCScrypt utility for use with LPC-Link2. Linkserver can also be installed using
+the MCUXpresso Installer.
+
+LinkServer is compatible with the following debug probes:
+
+- :ref:`lpclink2-cmsis-onboard-debug-probe`
+
+Supported west commands:
+
+1. flash
+#. debug
+#. debugserver
+#. attach
+
+Notes:
+
+
+1. Probes can be listed with LinkServer:
+
+.. code-block:: console
+
+   LinkServer probes
+
+2. Use the LinkServer west runner   ``--probe`` option to pass the probe index.
+
+.. code-block:: console
+
+   west flash --runner=linkserver --probe=3
+
+3. device specific settings can be overridden with the west runner for LinkServer with
+   the option '--override'. May be used multiple times. The format is dictated
+   by LinkServer, e.g.:
+
+.. code-block:: console
+
+   west flash --runner=linkserver --override /device/memory/5/flash-driver=MIMXRT500_SFDP_MXIC_OSPI_S.cfx
 
 .. _jlink-debug-host-tools:
 
@@ -354,5 +403,5 @@ To enable Zephyr RTOS awareness follow the steps described in
 .. _Lauterbach TRACE32 Zephyr OS Awareness Manual:
 	https://www2.lauterbach.com/pdf/rtos_zephyr.pdf
 
-.. _BOSSA oficial releases:
+.. _BOSSA official releases:
 	https://github.com/shumatech/BOSSA/releases

@@ -54,6 +54,7 @@ class TestInstance:
 
         self.name = os.path.join(platform.name, testsuite.name)
         self.run_id = self._get_run_id()
+        self.dut = None
         self.build_dir = os.path.join(outdir, platform.name, testsuite.name)
 
         self.domains = None
@@ -290,15 +291,17 @@ class TestInstance:
             build_dir = self.build_dir
 
         fns = glob.glob(os.path.join(build_dir, "zephyr", "*.elf"))
-        fns.extend(glob.glob(os.path.join(build_dir, "zephyr", "*.exe")))
         fns.extend(glob.glob(os.path.join(build_dir, "testbinary")))
         blocklist = [
                 'remapped', # used for xtensa plaforms
                 'zefi', # EFI for Zephyr
-                '_pre' ]
+                'qemu', # elf files generated after running in qemu
+                '_pre']
         fns = [x for x in fns if not any(bad in os.path.basename(x) for bad in blocklist)]
-        if len(fns) != 1 and self.platform.type != 'native':
-            raise BuildError("Missing/multiple output ELF binary")
+        if not fns:
+            raise BuildError("Missing output binary")
+        elif len(fns) > 1:
+            logger.warning(f"multiple ELF files detected: {', '.join(fns)}")
         return fns[0]
 
     def get_buildlog_file(self) -> str:
