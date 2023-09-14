@@ -10,6 +10,7 @@ LOG_MODULE_REGISTER(net_syslog, LOG_LEVEL_DBG);
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log_backend.h>
+#include <zephyr/logging/log_backend_net.h>
 #include <zephyr/logging/log_ctrl.h>
 
 #include <stdlib.h>
@@ -36,6 +37,10 @@ int main(void)
 		const struct log_backend *backend = log_backend_net_get();
 
 		if (!log_backend_is_active(backend)) {
+
+#ifdef CONFIG_LOG_BACKEND_NET_SERVER_RUNTIME
+			log_backend_net_set_addr("192.0.2.2:514");
+#endif
 			log_backend_init(backend);
 			log_backend_enable(backend, backend->cb->ctx, CONFIG_LOG_MAX_LEVEL);
 		}
