@@ -10,6 +10,7 @@ LOG_MODULE_REGISTER(log_backend_net, CONFIG_LOG_DEFAULT_LEVEL);
 #include <zephyr/logging/log_backend.h>
 #include <zephyr/logging/log_core.h>
 #include <zephyr/logging/log_output.h>
+#include <zephyr/logging/log_backend_net.h>
 #include <zephyr/net/net_pkt.h>
 #include <zephyr/net/net_context.h>
 
@@ -196,20 +197,31 @@ static int format_set(const struct log_backend *const backend, uint32_t log_type
 	return 0;
 }
 
+bool log_backend_net_set_addr(const char *addr)
+{
+	net_sin(&server_addr)->sin_port = htons(514);
+
+	bool ret = net_ipaddr_parse(addr, strlen(addr), &server_addr);
+
+	if (!ret) {
+		LOG_ERR("Cannot parse syslog server address");
+		return ret;
+	}
+
+	return ret;
+}
+
 static void init_net(struct log_backend const *const backend)
 {
 	ARG_UNUSED(backend);
-	int ret;
 
-	net_sin(&server_addr)->sin_port = htons(514);
+#ifdef CONFIG_LOG_BACKEND_NET_SERVER_STATIC
+	bool ret = log_backend_net_set_addr(CONFIG_LOG_BACKEND_NET_SERVER);
 
-	ret = net_ipaddr_parse(CONFIG_LOG_BACKEND_NET_SERVER,
-			       sizeof(CONFIG_LOG_BACKEND_NET_SERVER) - 1,
-			       &server_addr);
-	if (ret == 0) {
-		LOG_ERR("Cannot configure syslog server address");
+	if (!ret) {
 		return;
 	}
+#endif
 
 	log_backend_deactivate(log_backend_net_get());
 }

@@ -15,8 +15,29 @@ config LOG_BACKEND_NET
 
 if LOG_BACKEND_NET
 
+choice
+	prompt "Syslog server IP address"
+	default LOG_BACKEND_NET_SERVER_STATIC
+	help
+	  Specify how the server's IP address is set.
+
+config LOG_BACKEND_NET_SERVER_STATIC
+	bool "Select the server IP address through Kconfig option"
+
+config LOG_BACKEND_NET_SERVER_RUNTIME
+	bool "Allows user to set the server IP address at runtime"
+	help
+	  This allows the user to set the server's IPv4 or IPv6
+	  address at runtime through log_backend_net_set_addr().
+	  This is useful when the server's IP is unknown at build time
+	  or needs to be discovered prior to manually starting the
+	  networking backend.
+
+endchoice
+
 config LOG_BACKEND_NET_SERVER
 	string "Syslog server IP address"
+	depends on LOG_BACKEND_NET_SERVER_STATIC
 	help
 	  This can be either IPv4 or IPv6 address.
 	  Server listen UDP port number can be configured here too.
