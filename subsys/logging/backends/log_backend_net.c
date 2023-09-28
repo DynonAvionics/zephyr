@@ -200,12 +200,20 @@ static int format_set(const struct log_backend *const backend, uint32_t log_type
 bool log_backend_net_set_addr(const char *addr)
 {
 	if (net_init_done) {
-		const struct log_backend *backend = log_backend_net_get();
 		/* Release context so it can be recreated with the specified ip address
 		 * next time process() is called
 		 */
-		net_context_put(backend->cb->ctx);
-		net_init_done = false;
+		int ret = net_context_put(log_output_net.control_block->ctx);
+
+		if (ret < 0) {
+			LOG_ERR("Cannot release context (%d)", ret);
+			return false;
+		} else {
+			/* The context is successfully released so we flag it
+			 * to be recreated with the new ip address
+			 */
+			net_init_done = false;
+		}
 	}
 
 	net_sin(&server_addr)->sin_port = htons(514);
