@@ -276,6 +276,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
                                '-ex', 'monitor reset',
                                '-ex', 'load']
                 if self.reset:
+                    client_cmd += ['-ex', 'monitor sleep 500']
                     client_cmd += ['-ex', 'monitor reset']
             if not self.gdb_host:
                 self.require(self.gdbserver)
@@ -336,6 +337,7 @@ class JLinkBinaryRunner(ZephyrBinaryRunner):
         lines.append(flash_cmd)
 
         if self.reset:
+            lines.append('sleep 500')
             lines.append('r') # Reset and halt the target
 
         lines.append('g') # Start the CPU
