@@ -195,22 +195,40 @@ function(ExternalZephyrProject_Add)
     else()
       set(sysbuild_image_conf_fragment ${sysbuild_image_conf_dir}/${ZBUILD_APPLICATION}.conf)
     endif()
+    set(sysbuild_image_conf_board_fragment ${sysbuild_image_conf_dir}/${ZBUILD_APPLICATION}_${BOARD}.conf)
 
-    if (NOT (${ZBUILD_APPLICATION}_OVERLAY_CONFIG OR ${ZBUILD_APPLICATION}_EXTRA_CONF_FILE)
-        AND EXISTS ${sysbuild_image_conf_fragment}
-    )
-      set(${ZBUILD_APPLICATION}_EXTRA_CONF_FILE ${sysbuild_image_conf_fragment}
-          CACHE INTERNAL "Kconfig fragment defined by main application"
-      )
+    if (NOT ${ZBUILD_APPLICATION}_OVERLAY_CONFIG OR ${ZBUILD_APPLICATION}_EXTRA_CONF_FILE)
+
+      if (EXISTS ${sysbuild_image_conf_fragment})
+        set(${ZBUILD_APPLICATION}_EXTRA_CONF_FILE ${sysbuild_image_conf_fragment}
+              CACHE INTERNAL "Kconfig fragment defined by main application")
+      endif()
+
+      if (EXISTS ${sysbuild_image_conf_board_fragment})
+        set(${ZBUILD_APPLICATION}_EXTRA_CONF_FILE ${${ZBUILD_APPLICATION}_EXTRA_CONF_FILE} ${sysbuild_image_conf_board_fragment}
+              CACHE INTERNAL "Kconfig fragment defined by main application")
+      endif()
+
     endif()
 
-    # Check for overlay named <ZBUILD_APPLICATION>.overlay.
     set(sysbuild_image_dts_overlay ${sysbuild_image_conf_dir}/${ZBUILD_APPLICATION}.overlay)
-    if (NOT ${ZBUILD_APPLICATION}_DTC_OVERLAY_FILE AND EXISTS ${sysbuild_image_dts_overlay})
-      set(${ZBUILD_APPLICATION}_DTC_OVERLAY_FILE ${sysbuild_image_dts_overlay}
-          CACHE INTERNAL "devicetree overlay file defined by main application"
-      )
-    endif()
+    if (NOT ${ZBUILD_APPLICATION}_DTC_OVERLAY_FILE)
+
+      # Check for overlay named <ZBUILD_APPLICATION>.overlay.
+      if (EXISTS ${sysbuild_image_dts_overlay})
+        set(${ZBUILD_APPLICATION}_DTC_OVERLAY_FILE ${sysbuild_image_dts_overlay}
+          CACHE INTERNAL "devicetree overlay file defined by main application")
+      endif()
+
+      # Check for overlay named <ZBUILD_APPLICATION>_<BOARD>.overlay. If found, add it to the
+      # previously found overlays
+      set(sysbuild_image_dts_board_overlay ${sysbuild_image_conf_dir}/${ZBUILD_APPLICATION}_${BOARD}.overlay)
+      if (EXISTS ${sysbuild_image_dts_board_overlay})
+        set(${ZBUILD_APPLICATION}_DTC_OVERLAY_FILE ${${ZBUILD_APPLICATION}_DTC_OVERLAY_FILE} "${sysbuild_image_dts_board_overlay}"
+          CACHE INTERNAL "devicetree overlay file defined by main application")
+      endif()
+
+      endif()
   endif()
 
   # Update ROOT variables with relative paths to use absolute paths based on
