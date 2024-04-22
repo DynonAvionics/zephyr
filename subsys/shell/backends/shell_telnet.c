@@ -611,7 +611,7 @@ error:
 
 /* Shell API */
 
-static int init(const struct shell_transport *transport,
+static int shell_telnet_init(const struct shell_transport *transport,
 		const void *config,
 		shell_transport_handler_t evt_handler,
 		void *context)
@@ -639,7 +639,7 @@ static int init(const struct shell_transport *transport,
 	return 0;
 }
 
-static int uninit(const struct shell_transport *transport)
+static int shell_telnet_uninit(const struct shell_transport *transport)
 {
 	if (sh_telnet == NULL) {
 		return -ENODEV;
@@ -648,7 +648,7 @@ static int uninit(const struct shell_transport *transport)
 	return 0;
 }
 
-static int enable(const struct shell_transport *transport, bool blocking)
+static int shell_telnet_enable(const struct shell_transport *transport, bool blocking)
 {
 	if (sh_telnet == NULL) {
 		return -ENODEV;
@@ -657,7 +657,7 @@ static int enable(const struct shell_transport *transport, bool blocking)
 	return 0;
 }
 
-static int write(const struct shell_transport *transport,
+static int shell_telnet_write(const struct shell_transport *transport,
 		 const void *data, size_t length, size_t *cnt)
 {
 	struct shell_telnet_line_buf *lb;
@@ -725,7 +725,7 @@ static int write(const struct shell_transport *transport,
 	return 0;
 }
 
-static int read(const struct shell_transport *transport,
+static int shell_telnet_read(const struct shell_transport *transport,
 		void *data, size_t length, size_t *cnt)
 {
 	size_t read_len;
@@ -769,11 +769,11 @@ no_data:
 }
 
 const struct shell_transport_api shell_telnet_transport_api = {
-	.init = init,
-	.uninit = uninit,
-	.enable = enable,
-	.write = write,
-	.read = read
+	.init = shell_telnet_init,
+	.uninit = shell_telnet_uninit,
+	.enable = shell_telnet_enable,
+	.write = shell_telnet_write,
+	.read = shell_telnet_read
 };
 
 static int enable_shell_telnet(void)
