@@ -11,7 +11,7 @@ zephyr_library_sources(
   zperf_tcp_uploader.c
 )
 
-zephyr_library_sources_ifdef(CONFIG_NET_ZPERF_SHELL
+zephyr_library_sources_ifdef(CONFIG_NET_SHELL_ZPERF_SUPPORTED
   zperf_shell.c
 )
 
