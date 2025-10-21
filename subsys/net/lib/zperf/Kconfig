@@ -13,6 +13,12 @@ menuconfig NET_ZPERF
 
 if NET_ZPERF
 
+config NET_SHELL_ZPERF_SUPPORTED
+	bool "Enables or Disables Shell access to zperf"
+	default y
+	help
+	  Enables or Disables shell access to zperf.
+
 config ZPERF_WORK_Q_THREAD_PRIORITY
 	int "zperf work queue thread priority"
 	default NUM_PREEMPT_PRIORITIES
