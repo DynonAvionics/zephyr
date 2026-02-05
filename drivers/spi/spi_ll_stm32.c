@@ -838,8 +838,10 @@ static int spi_stm32_configure(const struct device *dev,
 	}
 #endif /* CONFIG_SPI_RTIO */
 
-	if ((SPI_WORD_SIZE_GET(config->operation) != 8) &&
-	    (SPI_WORD_SIZE_GET(config->operation) != 16)) {
+
+	if ((SPI_WORD_SIZE_GET(config->operation) != 8)
+	    && (SPI_WORD_SIZE_GET(config->operation) != 16)
+		&& (SPI_WORD_SIZE_GET(config->operation) != 32)) {
 		return -ENOTSUP;
 	}
 
