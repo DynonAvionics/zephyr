@@ -24,8 +24,10 @@ LOG_MODULE_REGISTER(flash_img, CONFIG_IMG_MANAGER_LOG_LEVEL);
 #endif
 
 #define FIXED_PARTITION_IS_RUNNING_APP_PARTITION(label)                                            \
-	(FIXED_PARTITION_OFFSET(label) <= CONFIG_FLASH_LOAD_OFFSET &&                              \
-	 FIXED_PARTITION_OFFSET(label) + FIXED_PARTITION_SIZE(label) > CONFIG_FLASH_LOAD_OFFSET)
+    (DT_SAME_NODE(DT_MTD_FROM_FIXED_PARTITION(DT_NODELABEL(label)),                            \
+                  DT_MTD_FROM_FIXED_PARTITION(DT_CHOSEN(zephyr_code_partition))) &&            \
+     FIXED_PARTITION_OFFSET(label) <= CONFIG_FLASH_LOAD_OFFSET &&                              \
+     FIXED_PARTITION_OFFSET(label) + FIXED_PARTITION_SIZE(label) > CONFIG_FLASH_LOAD_OFFSET)
 
 #include <zephyr/devicetree.h>
 #if defined(CONFIG_TRUSTED_EXECUTION_NONSECURE) && (CONFIG_TFM_MCUBOOT_IMAGE_NUMBER == 2)
@@ -116,26 +118,32 @@ int flash_img_buffered_write(struct flash_img_context *ctx, const uint8_t *data,
 			     size_t len, bool flush)
 {
 	int rc;
-
+	printk("*** UPLOAD: flash_img_buffered_write start, flush:%d***\n",flush);
 	/* If there is a need to erase the trailer, that should happen before any
 	 * write is done to partition.
 	 */
 	rc = scramble_mcuboot_trailer(ctx);
+	printk("*** UPLOAD: flash_img_buffered_write scramble_mcuboot_trailer rc:%d ***\n",rc);
 	if (rc != 0) {
 		return rc;
 	}
+
 
 
 	/* if CONFIG_IMG_ERASE_PROGRESSIVELY is enabled the enabled CONFIG_STREAM_FLASH_ERASE
 	 * ensures that stream_flash erases flash progresively.
 	 */
 	rc = stream_flash_buffered_write(&ctx->stream, data, len, flush);
+	printk("*** UPLOAD: flash_img_buffered_write stream_flash_buffered_write rc:%d ***\n",rc);
 	if (!flush) {
 		return rc;
 	}
 
+
 	flash_area_close(ctx->flash_area);
 	ctx->flash_area = NULL;
+
+	printk("*** UPLOAD: flash_img_buffered_write return:%d ***\n",rc);
 
 	return rc;
 }
@@ -211,6 +219,8 @@ int flash_img_init_id(struct flash_img_context *ctx, uint8_t area_id)
 	}
 
 	flash_dev = flash_area_get_device(ctx->flash_area);
+	printk("*** flash_img_init_id: area_id=%d flash_dev=%p flash_dev->name=%s ***\n",
+       area_id, flash_dev, flash_dev ? flash_dev->name : "NULL");
 
 #if defined(CONFIG_MCUBOOT_BOOTLOADER_MODE_SWAP_USING_OFFSET)
 	/* Query size of first sector in flash for upgrade slot, so it can be erased, and begin

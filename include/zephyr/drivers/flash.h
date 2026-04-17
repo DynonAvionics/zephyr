@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <zephyr/device.h>
+#include <zephyr/sys/printk.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -343,13 +344,22 @@ static inline int z_impl_flash_erase(const struct device *dev, off_t offset,
 {
 	int rc = -ENOSYS;
 
-	const struct flash_driver_api *api =
+    printk("*** z_impl_flash_erase: ENTRY dev=%p offset=0x%lx size=0x%zx ***\n",
+           dev, (long)offset, size);
+
+		   const struct flash_driver_api *api =
 		(const struct flash_driver_api *)dev->api;
 
+    printk("*** z_impl_flash_erase: Got API, api=%p api->erase=%p ***\n",
+           api, api ? api->erase : NULL);
+
 	if (api->erase != NULL) {
+        printk("*** z_impl_flash_erase: About to call api->erase() ***\n");
 		rc = api->erase(dev, offset, size);
+        printk("*** z_impl_flash_erase: api->erase() returned rc=%d ***\n", rc);
 	}
 
+    printk("*** z_impl_flash_erase: RETURN rc=%d ***\n", rc);
 	return rc;
 }
 

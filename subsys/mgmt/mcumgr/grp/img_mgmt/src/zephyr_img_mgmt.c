@@ -282,13 +282,18 @@ int img_mgmt_erase_slot(int slot)
 	int rc;
 	int area_id = img_mgmt_flash_area_id(slot);
 
+LOG_INF("ERASE_SLOT: START slot=%d area_id=%d", slot, area_id);
+
 	if (area_id < 0) {
+LOG_ERR("ERASE_SLOT: Invalid area_id=%d", area_id);
 		return IMG_MGMT_ERR_INVALID_SLOT;
 	}
 
 	rc = flash_area_open(area_id, &fa);
+LOG_INF("ERASE_SLOT: flash_area_open rc=%d", rc);
 
 	if (rc < 0) {
+LOG_ERR("Failed to open flash area ID %u: %d", area_id, rc);
 		LOG_ERR("Failed to open flash area ID %u: %d", area_id, rc);
 		return IMG_MGMT_ERR_FLASH_OPEN_FAILED;
 	}
@@ -296,13 +301,16 @@ int img_mgmt_erase_slot(int slot)
 	rc = img_mgmt_flash_check_empty_inner(fa);
 
 	if (rc == 0) {
+LOG_INF("ERASE_SLOT: Entering rc==0 block, about to call flatten");
 		rc = flash_area_flatten(fa, 0, fa->fa_size);
+LOG_INF("ERASE_SLOT: flash_area_flatten returned rc=%d", rc);
 
 		if (rc != 0) {
 			LOG_ERR("Failed to erase flash area: %d", rc);
 			rc = IMG_MGMT_ERR_FLASH_ERASE_FAILED;
 		}
 	} else if (rc == 1) {
+LOG_INF("ERASE_SLOT: Slot appears empty, skipping erase");
 		/* A return value of 1 indicates that the slot is already erased, thus
 		 * return a success code to the client
 		 */
@@ -310,6 +318,7 @@ int img_mgmt_erase_slot(int slot)
 	}
 
 	flash_area_close(fa);
+LOG_INF("ERASE_SLOT: COMPLETE final_rc=%d", rc);
 
 	return rc;
 }
@@ -375,6 +384,7 @@ int img_mgmt_read(int slot, unsigned int offset, void *dst, unsigned int num_byt
 int img_mgmt_write_image_data(unsigned int offset, const void *data, unsigned int num_bytes,
 			      bool last)
 {
+	printk("*** UPLOAD: img_mgmt_write_image_data HEAP Version ***\n");
 	/* Even if K_HEAP_MEM_POOL_SIZE will be able to match size of the structure,
 	 * keep in mind that when application will put the heap under pressure, obtaining
 	 * of a flash image context may not be possible, so plan bigger heap size or
@@ -423,6 +433,8 @@ out:
 int img_mgmt_write_image_data(unsigned int offset, const void *data, unsigned int num_bytes,
 			      bool last)
 {
+	printk("*** UPLOAD: img_mgmt_write_image_data NON-HEAP Version ***\n");
+
 	static struct flash_img_context ctx;
 
 	if (offset == 0) {
@@ -430,11 +442,11 @@ int img_mgmt_write_image_data(unsigned int offset, const void *data, unsigned in
 			return IMG_MGMT_ERR_FLASH_OPEN_FAILED;
 		}
 	}
-
+	printk("*** UPLOAD: img_mgmt_write_image_data flash_img_init_id OK ***\n");
 	if (flash_img_buffered_write(&ctx, data, num_bytes, last) != 0) {
 		return IMG_MGMT_ERR_FLASH_WRITE_FAILED;
 	}
-
+	printk("*** UPLOAD: img_mgmt_write_image_data flash_img_buffered_write OK ***\n");
 	return IMG_MGMT_ERR_OK;
 }
 #endif

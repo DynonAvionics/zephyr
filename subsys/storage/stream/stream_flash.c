@@ -83,6 +83,7 @@ static int settings_direct_loader(const char *key, size_t len,
 static int stream_flash_erase_to_append(struct stream_flash_ctx *ctx, size_t size)
 {
 	int rc = 0;
+	printk("*** stream_flash_erase_to_append: ENTRY ***\n");
 #if defined(CONFIG_STREAM_FLASH_ERASE)
 	struct flash_pages_info page;
 #if defined(CONFIG_STREAM_FLASH_ERASE_ONLY_WHEN_SUPPORTED)
@@ -111,14 +112,16 @@ static int stream_flash_erase_to_append(struct stream_flash_ctx *ctx, size_t siz
 	 * points to first byte not yet erased.
 	 */
 	rc = flash_get_page_info_by_offs(ctx->fdev, ctx->offset + ctx->erased_up_to, &page);
+	printk("*** stream_flash_erase_to_append: Got page info, page.start=0x%lx size=0x%zx ***\n", page.start_offset, page.size);
 	if (rc != 0) {
 		LOG_ERR("Error %d while getting page info", rc);
 		return rc;
 	}
 
 	LOG_DBG("Erasing page at offset 0x%08lx", (long)page.start_offset);
-
+	printk("*** stream_flash_erase_to_append: About to call flash_erase() ***\n");
 	rc = flash_erase(ctx->fdev, page.start_offset, page.size);
+	printk("*** stream_flash_erase_to_append: flash_erase() returned rc=%d ***\n", rc);
 
 	if (rc != 0) {
 		LOG_ERR("Error %d while erasing page", rc);
@@ -126,6 +129,7 @@ static int stream_flash_erase_to_append(struct stream_flash_ctx *ctx, size_t siz
 		ctx->erased_up_to += page.size;
 	}
 #endif
+	printk("*** stream_flash_erase_to_append: return rc=%d ***\n", rc);
 	return rc;
 }
 
@@ -192,14 +196,16 @@ static int flash_sync(struct stream_flash_ctx *ctx)
 	size_t fill_length;
 	uint8_t filler;
 
+	printk("*** flash_sync: START write_addr=0x%zx buf_bytes=%zu ***\n", write_addr, ctx->buf_bytes);
 
 	if (ctx->buf_bytes == 0) {
 		return 0;
 	}
 
 	if (IS_ENABLED(CONFIG_STREAM_FLASH_ERASE)) {
-
+		printk("*** flash_sync: About to call stream_flash_erase_to_append ***\n");
 		rc = stream_flash_erase_to_append(ctx, ctx->buf_bytes);
+        printk("*** flash_sync: stream_flash_erase_to_append returned rc=%d ***\n", rc);
 		if (rc < 0) {
 			LOG_ERR("stream_flash_forward_erase %d range=0x%08zx",
 				rc, ctx->buf_bytes);
@@ -218,6 +224,7 @@ static int flash_sync(struct stream_flash_ctx *ctx)
 	}
 
 	buf_bytes_aligned = ctx->buf_bytes + fill_length;
+	printk("*** flash_sync: About to call flash_write, addr=0x%zx len=%zu ***\n", write_addr, buf_bytes_aligned);
 	rc = flash_write(ctx->fdev, write_addr, ctx->buf, buf_bytes_aligned);
 
 	if (rc != 0) {
@@ -254,7 +261,7 @@ static int flash_sync(struct stream_flash_ctx *ctx)
 
 	ctx->bytes_written += ctx->buf_bytes;
 	ctx->buf_bytes = 0U;
-
+ 	printk("*** flash_sync: COMPLETE rc=%d ***\n", rc);
 	return rc;
 }
 

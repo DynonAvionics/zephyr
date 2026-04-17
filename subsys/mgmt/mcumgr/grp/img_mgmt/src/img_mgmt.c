@@ -49,8 +49,10 @@
 #endif
 
 #define FIXED_PARTITION_IS_RUNNING_APP_PARTITION(label)                                            \
-	(FIXED_PARTITION_OFFSET(label) <= CONFIG_FLASH_LOAD_OFFSET &&                              \
-	 FIXED_PARTITION_OFFSET(label) + FIXED_PARTITION_SIZE(label) > CONFIG_FLASH_LOAD_OFFSET)
+    (DT_SAME_NODE(DT_MTD_FROM_FIXED_PARTITION(DT_NODELABEL(label)),                            \
+                  DT_MTD_FROM_FIXED_PARTITION(DT_CHOSEN(zephyr_code_partition))) &&            \
+     FIXED_PARTITION_OFFSET(label) <= CONFIG_FLASH_LOAD_OFFSET &&                              \
+     FIXED_PARTITION_OFFSET(label) + FIXED_PARTITION_SIZE(label) > CONFIG_FLASH_LOAD_OFFSET)
 
 BUILD_ASSERT(sizeof(struct image_header) == IMAGE_HEADER_SIZE,
 	     "struct image_header not required size");
@@ -239,7 +241,11 @@ int img_mgmt_active_slot(int image)
 	}
 #endif
 	LOG_DBG("(%d) => %d", image, slot);
-
+	printk("*** active_slot check: load_off=0x%x slot1_off=0x%x slot1_size=0x%x => %d\n",
+       CONFIG_FLASH_LOAD_OFFSET,
+       FIXED_PARTITION_OFFSET(slot1_partition),
+       FIXED_PARTITION_SIZE(slot1_partition),
+       FIXED_PARTITION_IS_RUNNING_APP_PARTITION(slot1_partition));
 	return slot;
 }
 
@@ -839,6 +845,7 @@ defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 	g_img_mgmt_state.size = action.size;
 
 	if (req.off == 0) {
+		LOG_INF("UPLOAD: First chunk received, size=%llu",action.size);
 		/*
 		 * New upload.
 		 */
@@ -852,7 +859,10 @@ defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 #if defined(CONFIG_MCUMGR_GRP_IMG_STATUS_HOOKS)
 		(void)mgmt_callback_notify(MGMT_EVT_OP_IMG_MGMT_DFU_STARTED, NULL, 0, &err_rc,
 					   &err_group);
+		printk("*** UPLOAD: DFU_STARTED callback returned ***\n");
 #endif
+
+	printk("*** UPLOAD: About to copy SHA data ***\n");
 
 #if defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 		cmd_status_arg.status = IMG_MGMT_ID_UPLOAD_STATUS_START;
@@ -865,23 +875,35 @@ defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 		 */
 		g_img_mgmt_state.data_sha_len = req.data_sha.len;
 		memcpy(g_img_mgmt_state.data_sha, req.data_sha.value, req.data_sha.len);
+		printk("*** UPLOAD: SHA data copied, len=%d ***\n", g_img_mgmt_state.data_sha_len);
 		memset(&g_img_mgmt_state.data_sha[req.data_sha.len], 0,
 			   IMG_MGMT_DATA_SHA_LEN - req.data_sha.len);
+		printk("*** UPLOAD: memset complete ***\n");
 
 #ifdef CONFIG_IMG_ENABLE_IMAGE_CHECK
+
+		printk("*** UPLOAD: CONFIG_IMG_ENABLE_IMAGE_CHECK is enabled ***\n");
 		/* Check if the existing image hash matches the hash of the underlying data,
 		 * this check can only be performed if the provided hash is a full SHA256 hash
 		 * of the file that is being uploaded, do not attempt the check if the length
 		 * of the provided hash is less.
 		 */
 		if (g_img_mgmt_state.data_sha_len == IMG_MGMT_DATA_SHA_LEN) {
+
+			printk("*** UPLOAD: Full SHA hash provided, checking existing image ***\n");
+
 			fic.match = g_img_mgmt_state.data_sha;
 			fic.clen = g_img_mgmt_state.size;
+
+			printk("*** UPLOAD: About to call flash_img_check() ***\n");
 
 			if (flash_img_check(&ctx, &fic, g_img_mgmt_state.area_id) == 0) {
 				/* Underlying data already matches, no need to upload any more,
 				 * set offset to image size so client knows upload has finished.
 				 */
+
+				printk("*** UPLOAD: flash_img_check() returned 0 - image matches! ***\n");
+
 				g_img_mgmt_state.off = g_img_mgmt_state.size;
 				reset = true;
 				last = true;
@@ -893,11 +915,15 @@ defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 
 				goto end;
 			}
+
+			printk("*** UPLOAD: flash_img_check() did not match, continuing ***\n");
 		}
 #endif
-
+printk("*** UPLOAD: Checking CONFIG_IMG_ERASE_PROGRESSIVELY ***\n");
 #ifndef CONFIG_IMG_ERASE_PROGRESSIVELY
 		/* erase the entire req.size all at once */
+		printk("*** UPLOAD: CONFIG_IMG_ERASE_PROGRESSIVELY action.erase:%d ***\n",action.erase);
+
 		if (action.erase) {
 			rc = img_mgmt_erase_image_data(0, req.size);
 			if (rc != 0) {
@@ -906,23 +932,26 @@ defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 				ok = smp_add_cmd_err(zse, MGMT_GROUP_ID_IMAGE, rc);
 				goto end;
 			}
+			printk("*** UPLOAD: CONFIG_IMG_ERASE_PROGRESSIVELY erase complete ***\n");
 		}
 #endif
 	} else {
+		printk("*** UPLOAD: CONFIG_IMG_ERASE_PROGRESSIVELY IS set ***\n");
 #if defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 		cmd_status_arg.status = IMG_MGMT_ID_UPLOAD_STATUS_ONGOING;
 #endif
 	}
-
+	printk("*** UPLOAD: Past erase section, about to initialize stream ***\n");
 	/* Write the image data to flash. */
 	if (req.img_data.len != 0) {
 		/* If this is the last chunk */
 		if (g_img_mgmt_state.off + req.img_data.len == g_img_mgmt_state.size) {
 			last = true;
 		}
-
+		printk("*** UPLOAD: Calling img_mgmt_write_image_data ***\n");
 		rc = img_mgmt_write_image_data(req.off, req.img_data.value, action.write_bytes,
 						    last);
+		printk("*** UPLOAD: img_mgmt_write_image_data returned:%d***\n",rc);
 		if (rc == 0) {
 			g_img_mgmt_state.off += action.write_bytes;
 		} else {
@@ -936,7 +965,7 @@ defined(CONFIG_MCUMGR_SMP_COMMAND_STATUS_HOOKS)
 			reset = true;
 			IMG_MGMT_UPLOAD_ACTION_SET_RC_RSN(&action,
 				img_mgmt_err_str_flash_write_failed);
-
+			printk("Irrecoverable error: flash write failed: %d", rc);
 			LOG_ERR("Irrecoverable error: flash write failed: %d", rc);
 
 			ok = smp_add_cmd_err(zse, MGMT_GROUP_ID_IMAGE, rc);

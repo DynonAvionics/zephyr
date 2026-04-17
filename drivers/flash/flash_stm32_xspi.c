@@ -62,14 +62,18 @@ static inline void xspi_lock_thread(const struct device *dev)
 {
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 
+	LOG_DBG("MUTEX: Attempting to acquire lock");
 	k_sem_take(&dev_data->sem, K_FOREVER);
+	LOG_DBG("MUTEX: Lock acquired");
 }
 
 static inline void xspi_unlock_thread(const struct device *dev)
 {
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 
+	LOG_DBG("MUTEX: Releasing lock");
 	k_sem_give(&dev_data->sem);
+	LOG_DBG("MUTEX: Lock released");
 }
 
 static int xspi_send_cmd(const struct device *dev, XSPI_RegularCmdTypeDef *cmd)
@@ -1031,6 +1035,9 @@ static bool stm32_xspi_is_memorymap(const struct device *dev)
 static int flash_stm32_xspi_erase(const struct device *dev, off_t addr,
 				  size_t size)
 {
+
+	printk("*** STM32 ERASE: START addr=0x%lx size=0x%zx ***\n", (long)addr, size);
+
 	const struct flash_stm32_xspi_config *dev_cfg = dev->config;
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 	int ret = 0;
@@ -1056,7 +1063,9 @@ static int flash_stm32_xspi_erase(const struct device *dev, off_t addr,
 		return -ENOTSUP;
 	}
 
+	printk("*** STM32 ERASE: Acquiring mutex ***\n");
 	xspi_lock_thread(dev);
+	printk("*** STM32 ERASE: Mutex acquired, starting erase ***\n");
 
 #ifdef CONFIG_STM32_MEMMAP
 	if (stm32_xspi_is_memorymap(dev)) {
@@ -1095,6 +1104,8 @@ static int flash_stm32_xspi_erase(const struct device *dev, off_t addr,
 	cmd_erase.InstructionWidth    = (dev_cfg->data_mode == XSPI_OCTO_MODE)
 					? HAL_XSPI_INSTRUCTION_16_BITS
 					: HAL_XSPI_INSTRUCTION_8_BITS;
+
+	printk("*** STM32 ERASE: Entering erase loop, size remaining=0x%zx ***\n", size);
 
 	while ((size > 0) && (ret == 0)) {
 
@@ -1193,8 +1204,12 @@ static int flash_stm32_xspi_erase(const struct device *dev, off_t addr,
 	}
 	/* Ends the erase operation */
 
+	printk("*** STM32 ERASE: Loop complete, ret=%d size_remaining=0x%zx ***\n", ret, size);
+
 erase_end:
+printk("*** STM32 ERASE: Releasing mutex, final ret=%d ***\n", ret);
 	xspi_unlock_thread(dev);
+printk("*** STM32 ERASE: COMPLETE ret=%d ***\n", ret);
 
 	return ret;
 }
@@ -1326,6 +1341,8 @@ static int flash_stm32_xspi_write(const struct device *dev, off_t addr,
 	size_t to_write;
 	int ret = 0;
 
+LOG_INF("WRITE: START addr=0x%lx size=0x%zx", (long)addr, size);
+
 	if (!xspi_address_is_valid(dev, addr, size)) {
 		LOG_ERR("Error: address or size exceeds expected values: "
 			"addr 0x%lx, size %zu", (long)addr, size);
@@ -1337,7 +1354,9 @@ static int flash_stm32_xspi_write(const struct device *dev, off_t addr,
 		return 0;
 	}
 
+LOG_DBG("WRITE: Acquiring mutex");
 	xspi_lock_thread(dev);
+LOG_DBG("WRITE: Acquiring mutex");
 
 #ifdef CONFIG_STM32_MEMMAP
 	ARG_UNUSED(dev_data);
@@ -1451,6 +1470,8 @@ static int flash_stm32_xspi_write(const struct device *dev, off_t addr,
 
 write_end:
 	xspi_unlock_thread(dev);
+
+LOG_INF("WRITE: COMPLETE bytes_written=%zu", ret);
 
 	return ret;
 }
