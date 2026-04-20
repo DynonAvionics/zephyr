@@ -49,8 +49,10 @@
 #endif
 
 #define FIXED_PARTITION_IS_RUNNING_APP_PARTITION(label)                                            \
-	(FIXED_PARTITION_OFFSET(label) <= CONFIG_FLASH_LOAD_OFFSET &&                              \
-	 FIXED_PARTITION_OFFSET(label) + FIXED_PARTITION_SIZE(label) > CONFIG_FLASH_LOAD_OFFSET)
+    (DT_SAME_NODE(DT_MTD_FROM_FIXED_PARTITION(DT_NODELABEL(label)),                            \
+                  DT_MTD_FROM_FIXED_PARTITION(DT_CHOSEN(zephyr_code_partition))) &&            \
+     FIXED_PARTITION_OFFSET(label) <= CONFIG_FLASH_LOAD_OFFSET &&                              \
+     FIXED_PARTITION_OFFSET(label) + FIXED_PARTITION_SIZE(label) > CONFIG_FLASH_LOAD_OFFSET)
 
 BUILD_ASSERT(sizeof(struct image_header) == IMAGE_HEADER_SIZE,
 	     "struct image_header not required size");
