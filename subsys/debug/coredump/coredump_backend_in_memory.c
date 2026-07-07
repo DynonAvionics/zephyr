@@ -16,6 +16,29 @@
 
 LOG_MODULE_REGISTER(coredump, CONFIG_DEBUG_COREDUMP_LOG_LEVEL);
 
+/*
+ * TIL-101 (Dynon): keep the hardware watchdog fed while the coredump is captured.
+ *
+ * z_fatal_error() locks interrupts and runs coredump() before the application's fatal
+ * handler, and this backend's start()/buffer_output() below (the pre-LOG_PANIC log drain
+ * plus the dump copy) can exceed a tight hardware-watchdog window on busy control-loop
+ * boards. Nothing else feeds the watchdog during that time, so feed it here. Feeding is a
+ * bare register write, safe with interrupts locked.
+ *
+ * This is a weak *declaration* of an optional hook whose strong definition is provided by
+ * the Dynon system_monitor watchdog wrapper (Watchdog.cpp). A weak declaration (rather than
+ * a local weak no-op definition) guarantees the strong override is what gets called when
+ * present, and the NULL check below turns it into a no-op when it isn't linked.
+ */
+extern void watchdog_feed_from_panic(void) __attribute__((weak));
+
+static inline void coredump_feed_watchdog(void)
+{
+	if (watchdog_feed_from_panic != NULL) {
+		watchdog_feed_from_panic();
+	}
+}
+
 #define IN_MEMORY_CANARY_SIZE 4
 #define IN_MEMORY_COREDUMP_SIZE_RECORD sizeof(size_t)
 
@@ -91,21 +114,31 @@ static int in_memory_copy_to(struct coredump_cmd_copy_arg *copy_arg)
 
 static void coredump_in_memory_backend_start(void)
 {
-	in_memory_erase();
+	coredump_feed_watchdog();
 
-	LOG_ERR(COREDUMP_PREFIX_STR "LOCATION %p", (void *)in_memory_coredump);
+	/*
+	 * TIL-101 (Dynon): capture-first ordering.
+	 *
+	 * Upstream drained the deferred log backlog here with `while (LOG_PROCESS())` and
+	 * then called LOG_PANIC(), all *before* a single dump byte was written. LOG_PANIC()
+	 * puts every log backend into panic mode and synchronously flushes the whole backlog
+	 * (plus the arch fault/register dump) out the console. On a chatty board with a tight
+	 * hardware watchdog that flush can outlast the watchdog window and reset the MCU
+	 * *before* the dump reaches RAM -- so no coredump is captured at all.
+	 *
+	 * This backend stores the dump in __noinit RAM (see buffer_output() below) and it is
+	 * retrieved later over MCUMgr, never read back from the console. The pre-dump console
+	 * flush is therefore pure cost with no benefit, so we drop it and go straight to
+	 * writing the dump. If console output of the fault is wanted, it can happen afterward
+	 * in the application fatal handler, once the dump is safely in RAM.
+	 */
+
+	in_memory_erase();
 
 	memcpy(in_memory_coredump, in_memory_canary, IN_MEMORY_CANARY_SIZE);
 	cur_ptr = &in_memory_coredump[IN_MEMORY_START];
 
 	*coredump_size = 0;
-
-	while (LOG_PROCESS()) {
-		;
-	}
-
-	LOG_PANIC();
-	LOG_ERR(COREDUMP_PREFIX_STR COREDUMP_BEGIN_STR);
 }
 
 static void coredump_in_memory_backend_end(void)
@@ -122,6 +155,9 @@ static void coredump_in_memory_backend_buffer_output(uint8_t *buf,
 						     size_t buflen)
 {
 	int space;
+
+	/* Called once per dump chunk; keep the watchdog fed across the whole dump. */
+	coredump_feed_watchdog();
 
 	LOG_DBG("Output buffer size %lu", (unsigned long)buflen);
 
